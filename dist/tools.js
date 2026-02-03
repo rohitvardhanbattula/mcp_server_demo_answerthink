@@ -3,24 +3,26 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOLS = void 0;
 exports.TOOLS = [
     {
+        name: "list_available_services",
+        description: "Search the SAP Service Catalog. Use this FIRST to verify service paths and prevent guessing non-existent APIs.",
+        inputSchema: { type: "object", properties: {} }
+    },
+    {
         name: "read_sap_data",
-        description: "Read data from SAP. IMPORTANT: SAP is case-sensitive (use 'City' not 'city'). If filtering on many-to-one relations fails, query the child entity directly. Always use $select for speed.",
+        description: "Read SAP data. Limits to 100 records per call. Always use $select for faster performance.",
         inputSchema: {
             type: "object",
             properties: {
-                servicePath: { type: "string", description: "Base OData path (e.g., /sap/opu/odata/sap/API_BUSINESS_PARTNER)" },
-                resourcePath: { type: "string", description: "EntitySet or specific ID (e.g., 'A_BusinessPartner' or 'A_BusinessPartner(\'1001\')')" },
-                parameters: {
-                    type: "object",
-                    description: "OData query options: $filter, $select, $top, $expand"
-                }
+                servicePath: { type: "string" },
+                resourcePath: { type: "string" },
+                parameters: { type: "object" }
             },
             required: ["servicePath", "resourcePath"]
         }
     },
     {
         name: "write_sap_data",
-        description: "Post, Patch, or Delete data. Requires a JSON payload.",
+        description: "Create, Update, or Delete SAP records. Automatically handles CSRF and ETag logic based on the HTTP method.",
         inputSchema: {
             type: "object",
             properties: {
@@ -30,15 +32,6 @@ exports.TOOLS = [
                 payload: { type: "object" }
             },
             required: ["method", "servicePath", "resourcePath", "payload"]
-        }
-    },
-    {
-        name: "inspect_metadata",
-        description: "Retrieve the technical $metadata to check correct field casing and relationships.",
-        inputSchema: {
-            type: "object",
-            properties: { servicePath: { type: "string" } },
-            required: ["servicePath"]
         }
     }
 ];
