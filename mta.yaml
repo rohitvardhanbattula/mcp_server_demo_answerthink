@@ -1,0 +1,58 @@
+_schema-version: '3.2'
+ID: universal-sap-mcp
+version: 1.0.0
+description: "Universal SAP MCP Server for Claude"
+parameters:
+  enable-parallel-deployments: true
+
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npm install
+        - npm run build
+
+modules:
+  # --- The Node.js MCP Server ---
+  - name: sap-mcp-server
+    type: nodejs
+    path: .
+    build-parameters:
+      ignore: ["node_modules/"]
+    parameters:
+      memory: 256M
+      disk-quota: 512M
+    requires:
+      - name: mcp-uaa
+      - name: mcp-destination
+      - name: mcp-connectivity
+    provides:
+      - name: mcp_api
+        properties:
+          url: ${default-url}
+
+resources:
+  # --- XSUAA Service (Authentication) ---
+  - name: mcp-uaa
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+      config:
+        xsappname: mcp-sap-appname
+        tenant-mode: dedicated
+
+  # --- Destination Service (To find the on-prem system) ---
+  - name: mcp-destination
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: destination
+      service-plan: lite
+
+  # --- Connectivity Service (The tunnel to on-prem) ---
+  - name: mcp-connectivity
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: connectivity
+      service-plan: lite
