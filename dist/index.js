@@ -12,9 +12,9 @@ const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 const tools_js_1 = require("./tools.js");
 const sapService_js_1 = require("./sapService.js");
 const app = (0, express_1.default)();
-app.use((0, compression_1.default)()); // Makes data transfer much faster for large SAP payloads
+app.use((0, compression_1.default)());
 app.use((0, cors_1.default)());
-const mcpServer = new index_js_1.Server({ name: "production-sap-mcp", version: "3.1.0" }, { capabilities: { tools: {} } });
+const mcpServer = new index_js_1.Server({ name: "hardened-sap-mcp", version: "4.1.0" }, { capabilities: { tools: {} } });
 mcpServer.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => ({ tools: tools_js_1.TOOLS }));
 mcpServer.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
@@ -27,20 +27,18 @@ mcpServer.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) =>
             const result = await (0, sapService_js_1.genericSapWrite)(args?.method, String(args?.servicePath), String(args?.resourcePath), args?.payload);
             return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
         }
-        if (name === "inspect_metadata") {
-            const result = await (0, sapService_js_1.genericSapRead)(String(args?.servicePath), "$metadata");
-            const textOutput = typeof result === 'string' ? result : JSON.stringify(result);
-            return { content: [{ type: "text", text: "SCHEMA START\n" + textOutput.substring(0, 15000) + "\nSCHEMA END" }] };
+        if (name === "list_available_services") {
+            const result = await (0, sapService_js_1.genericSapRead)("/sap/opu/odata/IWFND/CATALOGSERVICE", "ServiceCollection", { "$top": "50", "$select": "TechnicalName,Title" });
+            return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
         }
-        throw new Error(`Tool ${name} not found`);
+        throw new Error(`Tool not found: ${name}`);
     }
     catch (error) {
-        return { content: [{ type: "text", text: `Runtime Error: ${error.message}` }], isError: true };
+        return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
     }
 });
 let transport;
 app.get('/sse', async (req, res) => {
-    console.log("-> Claude connected via SSE");
     transport = new sse_js_1.SSEServerTransport('/messages', res);
     await mcpServer.connect(transport);
 });
@@ -48,7 +46,6 @@ app.post('/messages', async (req, res) => {
     if (transport)
         await transport.handlePostMessage(req, res);
     else
-        res.status(404).send("Session Lost");
+        res.status(404).send("Session Expired");
 });
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`🚀 SAP MCP Bridge active on port ${PORT}`));
+app.listen(process.env.PORT || 8080);
