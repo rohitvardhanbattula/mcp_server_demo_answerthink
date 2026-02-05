@@ -2,4 +2,4 @@ mta_archives/
 *.mtar
 node_modules/
 dist/
-approuter/node_modules/cc
+approuter/node_modules/
