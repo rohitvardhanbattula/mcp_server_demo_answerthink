@@ -1,0 +1,28 @@
+{
+  "welcomeFile": "/sse",
+  "authenticationMethod": "route",
+  "routes": [
+    {
+      "source": "^/.well-known/openid-configuration(.*)$",
+      "localDir": "resources",
+      "authenticationType": "none"
+    },
+    {
+      "source": "^/.well-known/oauth-authorization-server(.*)$",
+      "localDir": "resources",
+      "authenticationType": "none"
+    },
+    {
+      "source": "^/.well-known/oauth-protected-resource(.*)$",
+      "localDir": "resources",
+      "authenticationType": "none"
+    },
+    {
+      "source": "^/(.*)$",
+      "target": "$1",
+      "destination": "mcp-backend-api",
+      "authenticationType": "xsuaa",
+      "csrfProtection": false
+    }
+  ]
+}

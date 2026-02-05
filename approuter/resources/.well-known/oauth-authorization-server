@@ -1,0 +1,7 @@
+{
+  "issuer": "https://at-development-hgv7q18y.authentication.us10.hana.ondemand.com",
+  "authorization_endpoint": "https://at-development-hgv7q18y.authentication.us10.hana.ondemand.com/oauth/authorize",
+  "token_endpoint": "https://at-development-hgv7q18y.authentication.us10.hana.ondemand.com/oauth/token",
+  "response_types_supported": ["code"],
+  "grant_types_supported": ["authorization_code"]
+}

@@ -1,0 +1,9 @@
+{
+  "issuer": "https://at-development-hgv7q18y.authentication.us10.hana.ondemand.com",
+  "authorization_endpoint": "https://at-development-hgv7q18y.authentication.us10.hana.ondemand.com/oauth/authorize",
+  "token_endpoint": "https://at-development-hgv7q18y.authentication.us10.hana.ondemand.com/oauth/token",
+  "jwks_uri": "https://at-development-hgv7q18y.authentication.us10.hana.ondemand.com/token_keys",
+  "response_types_supported": ["code"],
+  "subject_types_supported": ["public"],
+  "id_token_signing_alg_values_supported": ["RS256"]
+}

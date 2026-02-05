@@ -1,7 +1,7 @@
 _schema-version: '3.2'
 ID: universal-sap-mcp
 version: 1.0.0
-description: "Universal SAP MCP Server for Claude"
+description: "Universal SAP MCP Server with Authenticated App Router"
 parameters:
   enable-parallel-deployments: true
 
@@ -13,7 +13,7 @@ build-parameters:
         - npm run build
 
 modules:
-  # --- The Node.js MCP Server ---
+  # --- The Node.js MCP Server (Backend API) ---
   - name: sap-mcp-server
     type: nodejs
     path: .
@@ -27,9 +27,25 @@ modules:
       - name: mcp-destination
       - name: mcp-connectivity
     provides:
-      - name: mcp_api
+      - name: mcp-backend-api
         properties:
           url: ${default-url}
+
+  # --- NEW: App Router (Authentication Gateway) ---
+  - name: mcp-app-router
+    type: approuter.nodejs
+    path: approuter
+    parameters:
+      memory: 256M
+      disk-quota: 256M
+    requires:
+      - name: mcp-uaa
+      - name: mcp-backend-api
+        group: destinations
+        properties:
+          name: mcp-backend-api
+          url: ~{url}
+          forwardAuthToken: true # Required for Principal Propagation
 
 resources:
   # --- XSUAA Service (Authentication) ---
@@ -43,14 +59,14 @@ resources:
         xsappname: mcp-sap-appname
         tenant-mode: dedicated
 
-  # --- Destination Service (To find the on-prem system) ---
+  # --- Destination Service ---
   - name: mcp-destination
     type: org.cloudfoundry.managed-service
     parameters:
       service: destination
       service-plan: lite
 
-  # --- Connectivity Service (The tunnel to on-prem) ---
+  # --- Connectivity Service ---
   - name: mcp-connectivity
     type: org.cloudfoundry.managed-service
     parameters:

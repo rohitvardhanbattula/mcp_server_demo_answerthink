@@ -20,7 +20,8 @@
       "https://*.cfapps.*.hana.ondemand.com/**",
       "https://claude.ai/api/mcp/auth_callback",
       "http://localhost:3000/oauth/callback",
-      "cursor://anysphere.cursor-retrieval/oauth/user-test-mcp-server-local/callback"
+      "cursor://anysphere.cursor-retrieval/oauth/user-test-mcp-server-local/callback",
+      "https://chatgpt.com/a/mcp/auth_callback"
     ],
     "token-validity": 3600,
     "refresh-token-validity": 86400

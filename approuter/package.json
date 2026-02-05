@@ -1,0 +1,11 @@
+{
+  "name": "mcp-approuter",
+  "version": "1.0.0",
+  "description": "App Router for SAP MCP Server",
+  "scripts": {
+    "start": "node node_modules/@sap/approuter/approuter.js"
+  },
+  "dependencies": {
+    "@sap/approuter": "^11.0.0"
+  }
+}

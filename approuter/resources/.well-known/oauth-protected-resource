@@ -1,0 +1,6 @@
+{
+  "resource": "https://the-hackett-group-d-b-a-answerthink--inc--at-developmen477153d0.cfapps.us10.hana.ondemand.com",
+  "authorization_servers": [
+    "https://at-development-hgv7q18y.authentication.us10.hana.ondemand.com"
+  ]
+}
