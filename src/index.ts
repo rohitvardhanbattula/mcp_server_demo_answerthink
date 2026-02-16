@@ -1,6 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
+import passport from 'passport';
+import { JWTStrategy } from '@sap/xsenv';
+import xsenv from '@sap/xsenv';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
@@ -10,6 +13,12 @@ import { genericSapRead, genericSapWrite } from './sapService.js';
 const app = express();
 app.use(compression());
 app.use(cors());
+app.use(express.json());
+
+const services = xsenv.getServices({ uaa: { tag: 'xsuaa' } });
+passport.use(new JWTStrategy(services.uaa));
+app.use(passport.initialize());
+const authMiddleware = passport.authenticate('JWT', { session: false });
 
 const mcpServer = new Server(
   { name: "hardened-sap-mcp", version: "4.1.0" },
@@ -40,13 +49,21 @@ mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 let transport: SSEServerTransport;
-app.get('/sse', async (req, res) => {
+
+app.get('/sse', authMiddleware, async (req, res) => {
   transport = new SSEServerTransport('/messages', res);
   await mcpServer.connect(transport);
 });
-app.post('/messages', async (req, res) => {
-  if (transport) await transport.handlePostMessage(req, res);
-  else res.status(404).send("Session Expired");
+
+app.post('/messages', authMiddleware, async (req, res) => {
+  if (transport) {
+    await transport.handlePostMessage(req, res);
+  } else {
+    res.status(404).send("Session Expired");
+  }
 });
 
-app.listen(process.env.PORT || 8080);
+const port = process.env.PORT || 8080;
+app.listen(port, () => {
+  console.log(`MCP Server started on port ${port}`);
+});
