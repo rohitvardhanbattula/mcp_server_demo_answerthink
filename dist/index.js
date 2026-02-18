@@ -1,70 +1,71 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
-const compression_1 = __importDefault(require("compression"));
-const passport_1 = __importDefault(require("passport"));
 const xsenv_1 = __importDefault(require("@sap/xsenv"));
-const xssec = __importStar(require("@sap/xssec"));
+const xssec = require('@sap/xssec');
+const passport = require('passport');
+const { JWTStrategy } = require('@sap/xssec');
 const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
 const sse_js_1 = require("@modelcontextprotocol/sdk/server/sse.js");
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 const tools_js_1 = require("./tools.js");
 const sapService_js_1 = require("./sapService.js");
 const app = (0, express_1.default)();
-app.use((0, compression_1.default)());
 app.use((0, cors_1.default)());
-app.use(express_1.default.json());
-const services = xsenv_1.default.getServices({ uaa: { tag: 'xsuaa' } });
-const getStrategy = () => {
-    const lib = xssec;
-    const StrategyClass = lib.XssecPassportStrategy || lib.default?.XssecPassportStrategy || lib.JWTStrategy || lib.Strategy;
-    if (typeof StrategyClass !== 'function') {
-        throw new Error("Critical: Could not find a valid Passport Strategy constructor in @sap/xssec.");
+// 1. XSUAA CREDENTIALS
+let uaaCredentials;
+try {
+    const services = xsenv_1.default.getServices({ uaa: { tag: 'xsuaa' } });
+    uaaCredentials = services.uaa;
+    console.log("✅ XSUAA Credentials loaded. URL:", uaaCredentials.url);
+}
+catch (error) {
+    console.error("❌ Failed to load XSUAA credentials:", error.message);
+    process.exit(1);
+}
+// 2. PASSPORT JWT STRATEGY
+passport.use(new JWTStrategy(uaaCredentials));
+app.use(passport.initialize());
+// 3. AUTH MIDDLEWARE (simple & safe)
+const authMiddleware = (req, res, next) => {
+    if (req.url !== '/sse') {
+        console.log(`[DEBUG] ${req.method} ${req.url}`);
     }
-    return StrategyClass;
+    passport.authenticate('JWT', { session: false }, (err, user, info) => {
+        if (err)
+            return res.status(500).json({ error: "Auth Error" });
+        if (!user)
+            return res.status(401).json({ error: "Unauthorized" });
+        req.authInfo = user;
+        next();
+    })(req, res, next);
 };
-const Strategy = getStrategy();
-passport_1.default.use(new Strategy(services.uaa));
-app.use(passport_1.default.initialize());
-const authMiddleware = passport_1.default.authenticate('JWT', { session: false });
-const mcpServer = new index_js_1.Server({ name: "hardened-sap-mcp", version: "4.1.0" }, { capabilities: { tools: {} } });
+// 4. DISCOVERY ENDPOINTS (for ChatGPT discovery)
+const discoveryPaths = [
+    '/.well-known/openid-configuration',
+    '/sse/.well-known/openid-configuration',
+    '/.well-known/oauth-authorization-server',
+    '/sse/.well-known/oauth-authorization-server'
+];
+app.get(discoveryPaths, (req, res) => {
+    res.json({
+        issuer: uaaCredentials.url,
+        authorization_endpoint: `${uaaCredentials.url}/oauth/authorize`,
+        token_endpoint: `${uaaCredentials.url}/oauth/token`,
+        userinfo_endpoint: `${uaaCredentials.url}/userinfo`,
+        jwks_uri: `${uaaCredentials.url}/token_keys`,
+        response_types_supported: ["code"],
+        subject_types_supported: ["public"],
+        id_token_signing_alg_values_supported: ["RS256"],
+        scopes_supported: ["openid"]
+    });
+});
+// 5. MCP SERVER SETUP
+const mcpServer = new index_js_1.Server({ name: "sap-mcp", version: "1.0.0" }, { capabilities: { tools: {} } });
 mcpServer.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => ({ tools: tools_js_1.TOOLS }));
 mcpServer.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
@@ -73,45 +74,62 @@ mcpServer.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) =>
             const result = await (0, sapService_js_1.genericSapRead)(String(args?.servicePath), String(args?.resourcePath), args?.parameters);
             return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
         }
-        if (name === "write_sap_data") {
-            const result = await (0, sapService_js_1.genericSapWrite)(args?.method, String(args?.servicePath), String(args?.resourcePath), args?.payload);
-            return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-        }
-        if (name === "list_available_services") {
-            const result = await (0, sapService_js_1.genericSapRead)("/sap/opu/odata/IWFND/CATALOGSERVICE", "ServiceCollection", { "$top": "50", "$select": "TechnicalName,Title" });
-            return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-        }
+        // Add more tools here if needed
         throw new Error(`Tool not found: ${name}`);
     }
     catch (error) {
-        return {
-            content: [{ type: "text", text: `SAP Error: ${error.message}` }],
-            isError: true
-        };
+        return { content: [{ type: "text", text: `SAP Error: ${error.message}` }], isError: true };
     }
 });
-// --- 3. Transport & Routes ---
-let transport = null;
-// SSE Connection Endpoint
+// 6. GLOBAL TRANSPORT (single active session for ChatGPT)
+let activeTransport = null;
+// 7. SSE ENDPOINT - FIXED (NO MANUAL HEADERS)
 app.get('/sse', authMiddleware, async (req, res) => {
-    console.log("🔌 New MCP Client connected via SSE");
-    transport = new sse_js_1.SSEServerTransport('/messages', res);
-    await mcpServer.connect(transport);
-    res.on('close', () => {
-        console.log("🔌 MCP Client disconnected");
-        transport = null;
+    console.log("🔌 ChatGPT SSE Connection (GET)");
+    // Create transport - LET IT HANDLE HEADERS
+    activeTransport = new sse_js_1.SSEServerTransport('/messages', res);
+    try {
+        await mcpServer.connect(activeTransport);
+    }
+    catch (error) {
+        console.error("❌ MCP connect failed:", error);
+        if (!res.headersSent) {
+            res.status(500).json({ error: "MCP Server connect failed" });
+        }
+        activeTransport = null;
+        return;
+    }
+    // Cleanup on disconnect
+    req.on('close', () => {
+        console.log("🔌 ChatGPT SSE Disconnected");
+        activeTransport = null;
     });
 });
+// Force GET only for SSE
+app.post('/sse', authMiddleware, (req, res) => {
+    res.setHeader('Allow', 'GET');
+    res.status(405).send("SSE requires GET method");
+});
+// 8. MESSAGES ENDPOINT (NO express.json() - transport handles parsing)
 app.post('/messages', authMiddleware, async (req, res) => {
-    if (transport) {
+    const transport = activeTransport;
+    if (!transport) {
+        console.error("❌ POST /messages: No active SSE transport");
+        return res.status(400).send("No active SSE session");
+    }
+    try {
         await transport.handlePostMessage(req, res);
     }
-    else {
-        res.status(404).send("No active MCP session. Please connect to /sse first.");
+    catch (error) {
+        console.error("❌ Message handling error:", error);
+        if (!res.headersSent) {
+            res.status(500).json({ error: error.message });
+        }
     }
 });
 const port = process.env.PORT || 8080;
 app.listen(port, () => {
-    console.log(`🚀 Hardened SAP MCP Server running on port ${port}`);
-    console.log(`🔒 Authentication: XSUAA JWT Strategy Active`);
+    console.log(`🚀 SAP MCP Server running on port ${port}`);
+    console.log(`📡 SSE endpoint: /sse`);
+    console.log(`📨 Messages: /messages`);
 });
