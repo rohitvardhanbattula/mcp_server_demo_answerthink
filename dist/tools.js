@@ -1,28 +1,25 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.TOOLS = void 0;
-exports.TOOLS = [
+export const TOOLS = [
     {
         name: "list_available_services",
-        description: "Search the SAP Service Catalog. Use this FIRST to verify service paths and prevent guessing non-existent APIs.",
+        description: "DISCOVERY: Fetches OData services available in the SAP system.",
         inputSchema: { type: "object", properties: {} }
     },
     {
         name: "read_sap_data",
-        description: "Read SAP data. Limits to 100 records per call. Always use $select for faster performance.",
+        description: "READ: Fetch data from SAP. Example: servicePath='/sap/opu/odata/sap/API_PURCHASEORDER', resourcePath='A_PurchaseOrder'",
         inputSchema: {
             type: "object",
             properties: {
                 servicePath: { type: "string" },
                 resourcePath: { type: "string" },
-                parameters: { type: "object" }
+                parameters: { type: "object", description: "OData params like $top, $filter" }
             },
             required: ["servicePath", "resourcePath"]
         }
     },
     {
         name: "write_sap_data",
-        description: "Create, Update, or Delete SAP records. Automatically handles CSRF and ETag logic based on the HTTP method.",
+        description: "WRITE: Create (post), Update (patch), or Delete records.",
         inputSchema: {
             type: "object",
             properties: {
@@ -31,7 +28,7 @@ exports.TOOLS = [
                 resourcePath: { type: "string" },
                 payload: { type: "object" }
             },
-            required: ["method", "servicePath", "resourcePath", "payload"]
+            required: ["method", "servicePath", "resourcePath"]
         }
     }
 ];
