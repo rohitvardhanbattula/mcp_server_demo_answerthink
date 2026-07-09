@@ -1,5 +1,6 @@
 import { executeHttpRequest } from '@sap-cloud-sdk/http-client';
-const DESTINATION = 'demo_destination';
+export const DESTINATION_NAME = 'demo_destination';
+const DESTINATION = DESTINATION_NAME;
 export async function genericSapRead(servicePath, resourcePath, params) {
     try {
         const response = await executeHttpRequest({ destinationName: DESTINATION }, {

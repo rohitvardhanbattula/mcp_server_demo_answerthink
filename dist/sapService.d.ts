@@ -1,3 +1,4 @@
+export declare const DESTINATION_NAME = "demo_destination";
 export declare function genericSapRead(servicePath: string, resourcePath: string, params?: Record<string, string>): Promise<{
     success: boolean;
     data: any;
