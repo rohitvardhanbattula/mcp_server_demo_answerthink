@@ -8,7 +8,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { TOOLS } from './tools.js';
-import { genericSapRead, genericSapWrite, DESTINATION_NAME } from './sapService.js';
+import { genericSapRead, genericSapWrite, genericSapMetadata, DESTINATION_NAME } from './sapService.js';
 
 const xssec = require('@sap/xssec');
 const passport = require('passport');
@@ -194,7 +194,12 @@ mcpServer.setRequestHandler(CallToolRequestSchema, async (request: any) => {
   try {
     switch (name) {
       case "list_available_services":
-        const catalog = await genericSapRead('/sap/opu/odata/IWFND/CATALOGSERVICE;v=2', 'ServiceCollection', { $select: 'ExternalName,ExternalServiceName', $top: '20' });
+        // Field names must match the CATALOGSERVICE $metadata exactly:
+        // "Title" = External Name, "TechnicalServiceName" = technical name,
+        // "ServiceUrl" = ready-to-use OData endpoint path (don't hand-build it).
+        // ExternalName / ExternalServiceName are NOT real properties on the
+        // Service EntityType and will fail with "field does not exist".
+        const catalog = await genericSapRead('/sap/opu/odata/IWFND/CATALOGSERVICE;v=2', 'ServiceCollection', { $select: 'ID,Title,TechnicalServiceName,ServiceUrl,Description', $top: '20' });
         if (!catalog.success) {
           // Don't silently return an empty list - surface the real reason
           // (bad/missing destination, network issue, auth failure, etc.)
@@ -202,7 +207,9 @@ mcpServer.setRequestHandler(CallToolRequestSchema, async (request: any) => {
           return { content: [{ type: "text", text: `❌ Could not reach SAP via destination '${DESTINATION_NAME}': ${catalog.error}` }], isError: true };
         }
         const services = catalog.data?.d?.results || [];
-        return { content: [{ type: "text", text: JSON.stringify({ services: services.map((s: any) => ({ name: s.ExternalServiceName || s.ExternalName, path: `/sap/opu/odata/sap/${s.ExternalServiceName || s.ExternalName}` })) }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ services: services.map((s: any) => ({ name: s.Title || s.TechnicalServiceName, technicalName: s.TechnicalServiceName, description: s.Description, path: s.ServiceUrl })) }, null, 2) }] };
+      case "get_service_metadata":
+        return { content: [{ type: "text", text: JSON.stringify(await genericSapMetadata(String(args?.servicePath)), null, 2) }] };
       case "read_sap_data":
         return { content: [{ type: "text", text: JSON.stringify(await genericSapRead(String(args?.servicePath), String(args?.resourcePath), args?.parameters), null, 2) }] };
       case "write_sap_data":

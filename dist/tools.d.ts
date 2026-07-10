@@ -20,6 +20,24 @@ export declare const TOOLS: ({
         properties: {
             servicePath: {
                 type: string;
+                description: string;
+            };
+            resourcePath?: undefined;
+            parameters?: undefined;
+            method?: undefined;
+            payload?: undefined;
+        };
+        required: string[];
+    };
+} | {
+    name: string;
+    description: string;
+    inputSchema: {
+        type: string;
+        properties: {
+            servicePath: {
+                type: string;
+                description?: undefined;
             };
             resourcePath: {
                 type: string;
@@ -45,6 +63,7 @@ export declare const TOOLS: ({
             };
             servicePath: {
                 type: string;
+                description?: undefined;
             };
             resourcePath: {
                 type: string;
