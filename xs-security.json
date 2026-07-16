@@ -17,6 +17,7 @@
   "authorities":["$XSAPPNAME.claudeai"],
   "oauth2-configuration": {
     "redirect-uris": [
+      "https://global.consent.azure-apim.net/redirect/**",
       "https://*.cfapps.*.hana.ondemand.com/**",
       "https://claude.ai/api/mcp/auth_callback",
       "http://localhost:3000/oauth/callback",
@@ -25,7 +26,8 @@
       "https://chat.openai.com/aip/g-xxxxxxxx/oauth/callback",
       "https://chatgpt.com/connector/oauth/DizzocWq2bS-",
   "https://chatgpt.com/oauth/callback",
-  "https://chatgpt.com/connector_platform_oauth_redirect"
+  "https://chatgpt.com/connector_platform_oauth_redirect",
+  "https://global.consent.azure-apim.net/redirect/sapdemomcp-20-2d-201-5f408da7c09aca5178-5f13f6abefc362f498"
     ],
     "token-validity": 3600,
     "refresh-token-validity": 86400
